@@ -9,7 +9,7 @@ SpDat$z[SpDat$z==101]<-NA
 ###2) There are 9 'missed' plants known to exist. Each plant is taller than .1 m;
 #### 8/9 modeled heights are < .1 m.
 ###3) So, the imperfect detection seems both stochastically related to real height
-###(smaller plants likely to be missed) and deterministically related to modeled height
+###(smaller plants likely to be missed? maybe not enough info?) and deterministically related to modeled height
 ###(if the height is modeled as < .1 m, the plant cannot be detected).
 ###This is a little trickier to think about...
 
@@ -33,6 +33,7 @@ SpDat$z[SpDat$z==101]<-NA
 ###z=1, y=0. 
 ###Let's just assume using nimble to start.
 library(nimble)
+library(nimble)
 Mod<-nimbleCode({
 
 for (b in 1:nfx){
@@ -43,17 +44,13 @@ p11~dunif(0, 1)
 
 ###False positive parameters
 p10~dunif(0, 1)
-##something above is not quite right, or rather
-##it is not intuitive to interpret. What is the probability
-###that a plant that doesn't exisit is observed...
-###getting a lot of weird stuff here. 
 
-###site hyper-parameters. Reminder that these need to be checked!
-#shape~dexp(1) 
-#rate~dgamma(.1, 1) 
-shape<-1
-rate<-5
 
+###size hyper-parameters. Reminder that these need to be checked!
+for (c in 1:2){
+shape[c]~dunif(0, 50)
+rate[c]~dunif(0, 50)
+}
 ###need to someway to relate true/modeled height
 kappa0~dnorm(0, sd=1)
 kappa1~dnorm(0, sd=1) ###maybe this needs to be informative
@@ -80,24 +77,14 @@ for (i in 1:M){
   ###simple example, we just treat size as a gamma RV
   ###if s[i] describes the location of points
   ###size[i] is analagous to a 'mark' for the points
+  class[i]<-z[i]+1
   
-  ht_true[i]~dgamma(shape, rate) #T(.1, ) 
-  ###weird error in v0.12 with T. Do we want to truncate this? 
-  ###I have no idea. Do we think every
-  ###possibly real (observed) shrub in the dataset is truly > .1 m tall?
+  ht_true[i]~dgamma(shape[class[i]], rate[class[i]]) #T(.1, ) 
+  ###weird error in v0.12 with T. But not sure we want to truncate this? 
+  #Do we think every possibly real (observed) shrub in the dataset is truly > .1 m tall?
   height[i]~dnorm(kappa0+kappa1*ht_true[i], sd=sigma)
   
-  ###roughly centering this. Not clear the true height even matters?
-  #logit(p11[i])<-alpha0+alpha1*(ht_true[i]-.25) 
-  
-  ###having trouble thinking about this. 
-  ###But, I think it's the modeled height that influences false positives.
-  ###If you don't exist, you don't have a true height? Certainly your true height
-  ###doesn't matter. Again, this is tricky...we don't care about the size distribution
-  ###of plants that don't exist. 
-  #logit(p10[i])<-delta0+delta1*(height[i]-.25) 
-  
-  ###Now, the truly weird part. Can't be detected at all if modeled height
+  ###Slightly weird part. Can't be detected at all if modeled height
   ###is less than .1m.
   y[i]~dbern(step(height[i]-.1)*(z[i]*p11+(1-z[i])*p10))
 }
