@@ -77,9 +77,9 @@ for (i in 1:M){
   ###simple example, we just treat size as a gamma RV
   ###if s[i] describes the location of points
   ###size[i] is analagous to a 'mark' for the points
-  class[i]<-z[i]+1
+
   
-  ht_true[i]~dgamma(shape[class[i]], rate[class[i]]) #T(.1, ) 
+  ht_true[i]~dgamma(shape[z[i]+1], rate[z[i]+1]) #T(.1, ) 
   ###weird error in v0.12 with T. But not sure we want to truncate this? 
   #Do we think every possibly real (observed) shrub in the dataset is truly > .1 m tall?
   height[i]~dnorm(kappa0+kappa1*ht_true[i], sd=sigma)
