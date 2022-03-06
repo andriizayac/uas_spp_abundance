@@ -144,5 +144,6 @@ samps<-runMCMC(mcmc = compMCMC$Rmcmc,
                niter=5000, nburnin=3000, thin=5, 
                nchains=1)
 
-###no idea how long to run. This takes a few minutes on a dinky laptop.
+###Will obviously want to check/play around with chain length, add chains, etc. 
+###This takes a few minutes on a dinky laptop.
            
