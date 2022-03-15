@@ -12,8 +12,8 @@ The general objective is to estimate how many individual shrubs exist within the
   
 There are a few interesting elements First, shrubs with a modeled height of <0.1 m cannot be detected. See, for example:
 ```{r, echo=FALSE}
-CellDat<-read.csv("/Users/johnclare/Documents/Drone/celldat.csv")
-SpDat<-read.csv("/Users/johnclare/Documents/Drone/spdat_joint0.csv")
+CellDat<-read.csv("data/model_input/celldat.csv")
+SpDat<-read.csv("data/model_input/spdat_joint0.csv")
 SpDat$z[SpDat$z==101]<-NA
 hist(SpDat$height[SpDat$y==1], main="Modeled Height, Detected")
 ```
