@@ -111,7 +111,7 @@ Vals$z<-ifelse(is.na(Vals$realHt), 0, 1)
 NonVals<-NonVals[NonVals$height >=.1,]
 
 ###We can't "validate" the Vals if the True height < .1m
-Vals<-Vals[-which(Vals$z==1 & Vals$realHt >=.1),]
+Vals<-Vals[-which(Vals$z==1 & Vals$realHt <=.1),]
 
 
 ###define the model
@@ -126,17 +126,19 @@ Mod<-nimbleCode({
     }
   }
   
-  logit(p11)~dlogis(0, 1)
+  alpha_0~dlogis(0, 1)
+  alpha_1~dlogis(0, 1)
+  
   logit(p10)~dlogis(0, 1) 
   
   
-  #for (c in 1:2){
-  #shape[c]~dunif(0, 10)
-  #rate[c]~dunif(0, 50)
-  #}
-  #kappa0~dnorm(0, sd=1)
-  #kappa1~dnorm(0, sd=1) ###maybe this needs to be informative
-  #sigma~dgamma(1, 5)
+  for (c in 1:2){
+  shape[c]~dunif(0, 10)
+  rate[c]~dunif(0, 50)
+  }
+  kappa0~dnorm(0, sd=1)
+  kappa1~dnorm(0, sd=1) ###maybe this needs to be informative
+  sigma~dgamma(1, 5)
   
   ###nimble does not accept vectors of indices...
   ###So...must split the cells into sets
@@ -166,20 +168,22 @@ Mod<-nimbleCode({
     z[i]~dbern(psi) ###does the shrub exist
     cl[i]<-z[i]+1
     s[i]~dcat(probs[1:nNaive, cl[i]]) ###where--which pixel--does the shrub exist
-    #ht_true[i]~T(dgamma(shape[class[i]], rate[class[i]]), .1, )
-    ##ht_true[i]~T(dgamma(shape[z[i]+1], rate[z[i]+1]), .1, ) 
+    ht_true[i]~T(dgamma(shape[cl[i]], rate[cl[i]]), .1, )
+    #ht_true[i]~T(dgamma(shape[z[i]+1], rate[z[i]+1]), .1, ) 
     #Not sure we want to truncate this? 
-    #height[i]~dnorm(kappa0+kappa1*ht_true[i], sd=sigma)
-    y[i]~dbern(z[i]*p11+(1-z[i])*p10)
+    height[i]~dnorm(kappa0+kappa1*ht_true[i], sd=sigma)
+    logit(p11[i])<-alpha_0+alpha_1*ht_true[i]
+    y[i]~dbern(step(height[i]-.1)*(z[i]*p11[i]+(1-z[i])*p10))
   }
   for (i in 1:V){ ###M this is the verified data
     z2[i]~dbern(psi) ###does the shrub exist
     #class2[i]<-z2[i]+1
     s2[i]~dcat(probs2[1:nVal, class2[i]]) ###where--which pixel--does the shrub exist
-    #ht_true2[i]~T(dgamma(shape[class2[i]], rate2[class[i]]), .1, )
+    ht_true2[i]~T(dgamma(shape[class2[i]], rate[class2[i]]), .1, )
     ##ht_true[i]~T(dgamma(shape[z[i]+1], rate[z[i]+1]), .1, ) 
-    ##height[i]~dnorm(kappa0+kappa1*ht_true[i], sd=sigma)
-    y2[i]~dbern(z2[i]*p11+(1-z2[i])*p10)
+    height2[i]~dnorm(kappa0+kappa1*ht_true2[i], sd=sigma)
+    logit(p12[i])<-alpha_0+alpha_1*ht_true2[i]
+    y2[i]~dbern(step(height[i]-.1)*(z2[i]*p12[i]+(1-z2[i])*p10))
   }
   N<-sum(z[1:M])+sum(z2[1:V])
   ###how many of the observed plants exist...
@@ -205,17 +209,20 @@ Constants<-list(M=nrow(NonVals+1000), V=nrow(Vals),
                 class2=Vals$z+1)
 
 Data<-list(y=c(NonVals$y, rep(0, 1000)), s=c(NonVals$s, rep(NA, 1000)),
-           z2=Vals$z, y2=Vals$y, s2=Vals$s)
+           z2=Vals$z, y2=Vals$y, s2=Vals$s, height=c(NonVals$height, rep(NA, 1000)), 
+           ht_true=rep(NA, nrow(NonVals)+1000), height2=Vals$height,
+           ht_true2=Vals$realHt)
 #validated=Validation, nonvalidated=grid$cell %notin% Validation) 
 
 Zinit<-c(rep(1, nrow(NonVals)), rep(0, 1000))
 Cinit<-Zinit+1
-Inits <- list(z=Zinit, cl=Cinit, beta=matrix(0, 2, 2))
+Inits <- list(z=Zinit, cl=Cinit, beta=matrix(0, 2, 2), ht_true=runif(nrow(NonVals)+1000, .1, .3))
 
 Shrub <- nimbleModel(code = Mod, name = 'Shrub', constants = Constants,
                      data=Data, inits = Inits)
 
-mcmcConf <- configureMCMC(Shrub, monitors = c("p11", "p10", "N", "beta"))
+mcmcConf <- configureMCMC(Shrub, monitors = c("alpha_0", "alpha_1", "p10", "N", "beta", 
+                                              "kappa0", "kappa1", "sigma"))
 
 Rmcmc<-buildMCMC(mcmcConf)
 
@@ -229,8 +236,7 @@ samps<-runMCMC(mcmc = compMCMC$Rmcmc,
 ###needs to run longer...some parameters in the right ballpark, at least. 
 ###I kind of suspect that sampling the latent existence states
 ###and having each state have it's own "distribution" parameters
-###is tricky. N not looking so good--probably because the model
-###ignores size effects used in simulation...will reboot this.
+###is tricky. N not looking so good.
 
 ###discussion for meeting--
 
