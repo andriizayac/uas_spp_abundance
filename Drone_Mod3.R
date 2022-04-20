@@ -53,7 +53,7 @@ TrueGuys<-data.frame(ID=1:sum(grid$TrueN), cellID=rep(grid$cell, grid$TrueN))
 
 ### For the false guys, this seems like a shifted gamma
 ### (Don't really care about "undetected" false phenomena)
-
+###For simplicity, much easier to use a gamma.
 ##Would be good to know what the appropriate parms are here
 
 FalseGuys$height<-rgamma(nrow(FalseGuys), 2, 20)
@@ -64,7 +64,10 @@ FalseGuys<-FalseGuys[FalseGuys$height >= 0.1,]
 ###For true plants, this varies across space.
 ###below, smaller plants where there are more plants &
 ###smaller plants in burned areas.
+
 ###Not even sure we need to worry about this?
+###Key question is whether to consider this in the model (post-simulation) or not?
+
 grid$ESize<-exp(.5-.5*grid$TrueN-.5*grid$Burn)
 hist(grid$ESize) ###note, far right reflects N=0, so these plants do not exist
 grid$shape<-simstudy::gammaGetShapeRate(grid$ESize, .25)$shape
@@ -96,7 +99,7 @@ for (i in 1:nrow(TrueGuys)){
 ###Many ways to consider a sampling scheme for the validation.
 
 ###Anyway, here, let's imagine 200 cells randomly sampled.
-Validation<-sample(grid$cell, 50)
+Validation<-sample(grid$cell, 200)
 
 library(raster)
 plot(rasterFromXYZ(grid[, c(1, 2, 4)]))
